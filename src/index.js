@@ -35,6 +35,7 @@ app.get('/', (req, res) => res.status(200).send('<h1>Wellcome to My RESTAPIs</h1
 // setup routes
 const routers = require('./routers')
 app.use('/api/user', routers.user_routers)
+app.use('/api/items', routers.item_routers)
 
 // binding to local port
 const PORT = process.env.PORT
