@@ -27,3 +27,19 @@ module.exports.getAllItems = async(req,res) =>{
         res.status(500).send(error);
     }
 }
+
+module.exports.insertItem = async(req,res) =>{
+    try{
+        const body = req.body
+        console.log(body)
+
+        const GET_ITEMS = `INSERT INTO ms_items (item_name, item_type, storage_id, item_stock) VALUES (?, ?, ?, ?)`
+        const [ITEMS] = await database.execute(GET_ITEMS, [body.item_name, body.item_type, body.storage_id, body.item_stock]);
+
+        res.status(200).send("Insert Success")
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error);
+    }
+}
