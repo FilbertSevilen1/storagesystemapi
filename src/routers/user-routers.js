@@ -18,5 +18,8 @@ const {user} = require('../controllers')
 
 routers.get('/', user.getAllUsers)
 routers.post('/id', user.getUserById)
+routers.post('/register', user.registerUser)
+routers.post('/login', user.loginUser)
+routers.post('/keeplogin', user.keepLogin)
 
 module.exports = routers

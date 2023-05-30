@@ -33,8 +33,8 @@ module.exports.insertItem = async(req,res) =>{
         const body = req.body
         console.log(body)
 
-        const GET_ITEMS = `INSERT INTO ms_items (item_name, item_type, storage_id, item_stock) VALUES (?, ?, ?, ?)`
-        const [ITEMS] = await database.execute(GET_ITEMS, [body.item_name, body.item_type, body.storage_id, body.item_stock]);
+        const INSERT_DATA = `INSERT INTO ms_items (item_name, item_type, storage_id, item_stock) VALUES (?, ?, ?, ?)`
+        const [ITEMS] = await database.execute(INSERT_DATA, [body.item_name, body.item_type, body.storage_id, body.item_stock]);
 
         res.status(200).send("Insert Success")
     }
