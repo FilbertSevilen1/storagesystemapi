@@ -44,6 +44,123 @@ module.exports.insertItem = async(req,res) =>{
     }
 }
 
+module.exports.getDraft = async(req,res)=>{
+    try{
+        const body = req.body
+        console.log(body)
+        const GET_DRAFT = `SELECT * FROM ms_borrow 
+        JOIN ms_borrow_detail ON ms_borrow.borrow_id = ms_borrow_detail.borrow_id 
+        JOIN ms_items ON ms_items.item_id = ms_borrow_detail.item_id 
+        JOIN ms_storage ON ms_storage.storage_id = ms_items.storage_id
+        WHERE ms_borrow.borrow_status = 'draft' AND user_id = ?`
+        const [DRAFT] = await database.execute(GET_DRAFT, [body.user_id])
+
+        res.status(200).send(DRAFT)
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error)
+    }
+}
+
+module.exports.updateDraft = async(req,res)=>{
+    try{
+        let body = req.body;
+        console.log(body)
+
+        const SUBMIT_DRAFT = `UPDATE ms_borrow SET borrow_location = ?, borrow_reason = ? WHERE borrow_id = ? AND borrow_status = 'draft'`
+        const [DRAFT] = await database.execute(SUBMIT_DRAFT, [body.borrow_location, body.borrow_reason, body.borrow_id])
+
+        res.status(200).send('Draft Updated')
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error)
+    }
+}
+
+module.exports.submitDraft = async(req,res)=>{
+    try{
+        let body = req.body;
+        console.log(body)
+
+        const SUBMIT_DRAFT = `UPDATE ms_borrow SET borrow_status = 'borrowing', borrow_location = ?, borrow_reason = ? WHERE borrow_id = ? AND borrow_status = 'draft'`
+        const [DRAFT] = await database.execute(SUBMIT_DRAFT, [body.borrow_location, body.borrow_reason, body.borrow_id])
+
+        res.status(200).send('Items Borrowed')
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error)
+    }
+}
+
+module.exports.cancelDraft = async(req, res)=>{
+    try{
+        const body = req.body
+
+        const GET_BORROWED_STOCK = `SELECT * FROM ms_borrow_detail WHERE borrow_id = ?` 
+        const [BORROWED_STOCK] = await database.execute(GET_BORROWED_STOCK, [body.borrow_id])
+        console.log(BORROWED_STOCK)
+
+        for(let i=0;i<BORROWED_STOCK.length;i++){
+            const GET_STOCK = `SELECT item_stock FROM ms_items WHERE item_id = ?`
+            const [STOCK] = await database.execute(GET_STOCK, [BORROWED_STOCK[i].item_id])
+            console.log('stock : ',STOCK[0].item_stock, BORROWED_STOCK[i].item_count)
+
+            const UPDATE_STOCK = `UPDATE ms_items SET item_stock = ? WHERE item_id = ?`
+            const [UPDATE_INFO] = await database.execute(UPDATE_STOCK, [BORROWED_STOCK[i].item_count + STOCK[0].item_stock, BORROWED_STOCK[i].item_id])
+        }
+
+        const CANCEL_DRAFT = `UPDATE ms_borrow SET borrow_status = 'cancel' WHERE borrow_id = ? AND borrow_status = 'draft'`
+        const [DRAFT] = await database.execute(CANCEL_DRAFT, [body.borrow_id])
+
+        res.status(200).send('Draft Canceled')
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error)
+    }
+}
+
+module.exports.removeItemFromBorrow = async(req,res) =>{
+    try{
+        const body = req.body
+        console.log(body)
+
+        //check stock
+        const GET_STOCK = `SELECT item_stock FROM ms_items WHERE item_id = ?`
+        const [GET_INFO] = await database.execute(GET_STOCK,[body.item_id]);
+        console.log(GET_INFO[0].item_stock)
+
+        //get Detail Stock
+        const GET_DETAIL_STOCK = `SELECT item_count FROM ms_borrow_detail WHERE item_id = ? AND borrow_id = ?`
+        const [GET_DETAIL_INFO] = await database.execute(GET_DETAIL_STOCK,[body.item_id, body.borrow_id]);
+        console.log(GET_DETAIL_INFO[0].item_count)
+
+        //update stock
+        const UPDATE_STOCK = `UPDATE ms_items SET item_stock = ? WHERE item_id = ?`
+        const [UPDATE_INFO] = await database.execute(UPDATE_STOCK, [GET_INFO[0].item_stock + 1, body.item_id])
+
+        const UPDATE_DETAIL_STOCK = `UPDATE ms_borrow_detail SET item_count = ? WHERE item_id = ?`
+        const [UPDATE_DETAIL_INFO] = await database.execute(UPDATE_DETAIL_STOCK, [GET_DETAIL_INFO[0].item_count - 1, body.item_id])
+
+        if(GET_DETAIL_INFO[0].item_count<=1){
+        const SET_SAFE_FALSE = `SET SQL_SAFE_UPDATES = 0;`
+        const [SET_SAFE_INFO_FALSE] = await database.execute(SET_SAFE_FALSE)
+
+        const DELETE_ITEM = `DELETE FROM ms_borrow_detail WHERE item_id = ? AND borrow_id = ?`
+        const [REMOVE_INFO] = await database.execute(DELETE_ITEM, [body.item_id, body.borrow_id])
+
+        }
+        res.status(200).send('Item Removed')
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error)
+    }
+}
+
 module.exports.addItemToBorrow = async(req,res) =>{
     try{
         const body = req.body
@@ -60,6 +177,9 @@ module.exports.addItemToBorrow = async(req,res) =>{
             const CHECK_EXISTING_CART_COUNT = `SELECT * FROM ms_borrow ORDER BY borrow_id DESC LIMIT 1`
             const [COUNT] = await database.execute(CHECK_EXISTING_CART_COUNT)
             borrow_id = COUNT[0].borrow_id+1
+            console.log('id: ', borrow_id)
+            const CREATE_NEW_BORROW = `INSERT INTO ms_borrow (borrow_id, user_id, borrow_location, borrow_reason, borrow_status) VALUES (?, ?, ?, ?, ?)`
+            const [CREATE_INFO] = await database.execute(CREATE_NEW_BORROW,[borrow_id, body.user_id, "", "", "draft"])
         }
 
         const CHECK_CART_DETAIL = `SELECT * FROM ms_borrow_detail WHERE borrow_id = ? AND item_id = ?`
