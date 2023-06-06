@@ -44,6 +44,22 @@ module.exports.insertItem = async(req,res) =>{
     }
 }
 
+module.exports.getBorrowingByUserID = async(req,res) =>{
+    try{
+        const body = req.body
+        console.log('Body : ',body)
+
+        const GET_BORROWING = `SELECT * FROM ms_borrow WHERE user_id = ? and borrow_status = 'borrowing'`
+        const [BORROWING] = await database.execute(GET_BORROWING, [body.user_id])
+
+        res.status(200).send(BORROWING);
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error);
+    }
+}
+
 module.exports.getDraft = async(req,res)=>{
     try{
         const body = req.body
@@ -63,12 +79,32 @@ module.exports.getDraft = async(req,res)=>{
     }
 }
 
+module.exports.getOngoing = async(req,res)=>{
+    try{
+        const body = req.body
+        console.log(body)
+        const GET_DRAFT = `SELECT * FROM ms_borrow 
+        JOIN ms_borrow_detail ON ms_borrow.borrow_id = ms_borrow_detail.borrow_id 
+        JOIN ms_items ON ms_items.item_id = ms_borrow_detail.item_id 
+        JOIN ms_storage ON ms_storage.storage_id = ms_items.storage_id
+        WHERE ms_borrow.borrow_status = 'borrowing' AND user_id = ?`
+        const [DRAFT] = await database.execute(GET_DRAFT, [body.user_id])
+
+        res.status(200).send(DRAFT)
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error)
+    }
+}
+
+
 module.exports.updateDraft = async(req,res)=>{
     try{
         let body = req.body;
         console.log(body)
 
-        const SUBMIT_DRAFT = `UPDATE ms_borrow SET borrow_location = ?, borrow_reason = ? WHERE borrow_id = ? AND borrow_status = 'draft'`
+        const SUBMIT_DRAFT = `UPDATE ms_borrow SET borrow_location = ?, borrow_reason = ? WHERE borrow_id = ? AND (borrow_status = 'draft' OR borrow_status = 'borrowing')`
         const [DRAFT] = await database.execute(SUBMIT_DRAFT, [body.borrow_location, body.borrow_reason, body.borrow_id])
 
         res.status(200).send('Draft Updated')
@@ -116,6 +152,34 @@ module.exports.cancelDraft = async(req, res)=>{
         const [DRAFT] = await database.execute(CANCEL_DRAFT, [body.borrow_id])
 
         res.status(200).send('Draft Canceled')
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).send(error)
+    }
+}
+
+module.exports.returnItems = async(req, res)=>{
+    try{
+        const body = req.body
+
+        const GET_BORROWED_STOCK = `SELECT * FROM ms_borrow_detail WHERE borrow_id = ?` 
+        const [BORROWED_STOCK] = await database.execute(GET_BORROWED_STOCK, [body.borrow_id])
+        console.log(BORROWED_STOCK)
+
+        for(let i=0;i<BORROWED_STOCK.length;i++){
+            const GET_STOCK = `SELECT item_stock FROM ms_items WHERE item_id = ?`
+            const [STOCK] = await database.execute(GET_STOCK, [BORROWED_STOCK[i].item_id])
+            console.log('stock : ',STOCK[0].item_stock, BORROWED_STOCK[i].item_count)
+
+            const UPDATE_STOCK = `UPDATE ms_items SET item_stock = ? WHERE item_id = ?`
+            const [UPDATE_INFO] = await database.execute(UPDATE_STOCK, [BORROWED_STOCK[i].item_count + STOCK[0].item_stock, BORROWED_STOCK[i].item_id])
+        }
+
+        const CANCEL_DRAFT = `UPDATE ms_borrow SET borrow_status = 'returned' WHERE borrow_id = ? AND borrow_status = 'borrowing'`
+        const [DRAFT] = await database.execute(CANCEL_DRAFT, [body.borrow_id])
+
+        res.status(200).send('Item Successfully Returned')
     }
     catch(error){
         console.log(error)

@@ -10,5 +10,8 @@ routers.post('/cancel', item.cancelDraft)
 routers.post('/remove', item.removeItemFromBorrow)
 routers.post('/updateDraft', item.updateDraft)
 routers.post('/borrow', item.submitDraft)
+routers.post('/borrowing', item.getBorrowingByUserID)
+routers.post('/ongoing', item.getOngoing)
+routers.post('/returnitems', item.returnItems)
 
 module.exports = routers
